@@ -18,12 +18,22 @@ IMAGE_COL_WIDTH = 20  # Excel column width for image column
 HEADERS_STYLE = Font(bold=True, size=11)
 
 
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+    ),
+    "Accept": "image/*,*/*;q=0.8",
+}
+
+
 def download_image_bytes(url: str, timeout: float = 15.0) -> bytes | None:
     """Download an image and return raw bytes. Returns None on failure."""
     if not url:
         return None
     try:
-        with httpx.Client(follow_redirects=True, timeout=timeout) as client:
+        with httpx.Client(follow_redirects=True, timeout=timeout, headers=_BROWSER_HEADERS) as client:
             resp = client.get(url)
             resp.raise_for_status()
             return resp.content
