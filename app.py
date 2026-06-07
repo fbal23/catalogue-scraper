@@ -19,6 +19,8 @@ st.caption("Paste a factory product page URL → extract products → add to you
 # --- Session state for accumulating products across scrapes ---
 if "all_products" not in st.session_state:
     st.session_state.all_products = []
+if "last_scrape" not in st.session_state:
+    st.session_state.last_scrape = None
 
 # --- Sidebar Config ---
 with st.sidebar:
@@ -31,17 +33,9 @@ with st.sidebar:
     st.divider()
     st.metric("Products scraped this session", len(st.session_state.all_products))
 
-    if st.session_state.all_products:
-        excel_bytes = build_excel(st.session_state.all_products)
-        st.download_button(
-            "⬇️ Download catalogue (.xlsx)",
-            data=excel_bytes,
-            file_name="product-catalogue.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-
     if st.button("🗑️ Clear session"):
         st.session_state.all_products = []
+        st.session_state.last_scrape = None
         st.rerun()
 
 # --- Main Area ---
@@ -76,31 +70,20 @@ if st.button("🔍 Scrape & Add to Catalogue", type="primary", disabled=not url)
                 st.write(f"Image {i+1}/{len(products)}: {'✓' if p['image_bytes'] else '✗'}")
 
             st.session_state.all_products.extend(products)
+            st.session_state.last_scrape = len(products)
             status.update(label=f"Done! Found {len(products)} products", state="complete")
 
         st.success(f"Added **{len(products)}** products (session total: **{len(st.session_state.all_products)}**)")
-
-        if products:
-            st.subheader("Extracted Products")
-            preview_data = [
-                {
-                    "Name": p["name"],
-                    "Description": p["description"][:80] + ("..." if len(p["description"]) > 80 else ""),
-                    "Price": f"{p['price']} {p['currency']}".strip(),
-                    "Has Image": "✓" if p.get("image_bytes") else "✗",
-                }
-                for p in products
-            ]
-            st.dataframe(preview_data, use_container_width=True)
 
     except Exception as e:
         st.error(f"Error: {e}")
         st.exception(e)
 
-# Show full session catalogue
+# --- Catalogue display and download (always reflects current session state) ---
 if st.session_state.all_products:
     st.divider()
     st.subheader(f"Full Catalogue ({len(st.session_state.all_products)} products)")
+
     full_data = [
         {
             "Name": p["name"],
@@ -112,3 +95,13 @@ if st.session_state.all_products:
         for p in st.session_state.all_products
     ]
     st.dataframe(full_data, use_container_width=True)
+
+    # Download button — built AFTER session state is fully updated
+    excel_bytes = build_excel(st.session_state.all_products)
+    st.download_button(
+        "⬇️ Download catalogue (.xlsx)",
+        data=excel_bytes,
+        file_name="product-catalogue.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        type="primary",
+    )
