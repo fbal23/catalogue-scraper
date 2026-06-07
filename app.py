@@ -1,16 +1,13 @@
 """Product Catalogue Scraper — Streamlit Web App."""
 
-import io
 import os
-import tempfile
-from pathlib import Path
 
 import streamlit as st
 from dotenv import load_dotenv
 
 from scraper import fetch_page, clean_html
 from extractor import extract_products
-from excel_builder import append_products, get_total_rows
+from excel_builder import build_excel, download_image_bytes
 
 load_dotenv()
 
@@ -34,14 +31,8 @@ with st.sidebar:
     st.divider()
     st.metric("Products scraped this session", len(st.session_state.all_products))
 
-    # Build and offer download of accumulated catalogue
     if st.session_state.all_products:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp_excel = Path(tmpdir) / "catalogue.xlsx"
-            tmp_images = Path(tmpdir) / "images"
-            append_products(st.session_state.all_products, "", tmp_excel, tmp_images)
-            excel_bytes = tmp_excel.read_bytes()
-
+        excel_bytes = build_excel(st.session_state.all_products)
         st.download_button(
             "⬇️ Download catalogue (.xlsx)",
             data=excel_bytes,
@@ -77,9 +68,12 @@ if st.button("🔍 Scrape & Add to Catalogue", type="primary", disabled=not url)
             products = extract_products(cleaned, url)
             st.write(f"Found **{len(products)}** products")
 
-            # Tag each product with source URL
-            for p in products:
+            # Download images and store bytes in each product dict
+            status.update(label="Downloading product images...")
+            for i, p in enumerate(products):
                 p["source_url"] = url
+                p["image_bytes"] = download_image_bytes(p.get("image_url", ""))
+                st.write(f"Image {i+1}/{len(products)}: {'✓' if p['image_bytes'] else '✗'}")
 
             st.session_state.all_products.extend(products)
             status.update(label=f"Done! Found {len(products)} products", state="complete")
@@ -93,6 +87,7 @@ if st.button("🔍 Scrape & Add to Catalogue", type="primary", disabled=not url)
                     "Name": p["name"],
                     "Description": p["description"][:80] + ("..." if len(p["description"]) > 80 else ""),
                     "Price": f"{p['price']} {p['currency']}".strip(),
+                    "Has Image": "✓" if p.get("image_bytes") else "✗",
                 }
                 for p in products
             ]
@@ -112,6 +107,7 @@ if st.session_state.all_products:
             "Description": p["description"][:60] + ("..." if len(p["description"]) > 60 else ""),
             "Price": f"{p['price']} {p['currency']}".strip(),
             "Source": p.get("source_url", "")[:40] + "...",
+            "Image": "✓" if p.get("image_bytes") else "✗",
         }
         for p in st.session_state.all_products
     ]
