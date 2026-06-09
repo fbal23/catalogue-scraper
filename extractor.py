@@ -13,9 +13,14 @@ PRODUCT_TYPES = [
 ]
 
 GENERATION_PROMPT = """\
-Egy magyar bútorbolt webshopjába készítesz termékleírásokat. A gyártó a House Nordic (dán bútor márka).
+Egy magyar lakberendezési webshop (nordic-home.dk) marketingszövegírója vagy. A gyártó a House Nordic (dán bútor márka).
 
-Az alábbi termékadatok és termékkép alapján generálj magyar nyelvű tartalmat.
+FONTOS STÍLUSSZABÁLYOK:
+- TEGEZŐ stílus ("használd", "helyezd", "tedd") — NEM magázó
+- Rövid, pörgős mondatok — max 2-3 mondat a leírásokban, NE írj 5 mondatos bekezdéseket
+- Élénk, személyes hangvétel — "lélegzetelállító", "elragadó", "csempészd otthonodba"
+- NE használj sablonosságokat: "letisztult skandináv design", "harmonizál", "biztosít"
+- Inkább: mit csinálhatsz vele, hova tedd, milyen hangulatot teremt
 
 ## Termékadatok
 - Angol név: {title}
@@ -44,33 +49,44 @@ Adj vissza CSAK egy JSON objektumot (nincs markdown, nincs magyarázat):
 
 ### name_hu (Terméknév)
 Rövid, figyelemfelkeltő magyar terméknév ami tartalmazza a legfontosabb jellemzőt (szín VAGY anyag).
-Példák: "Elegáns rózsaszín bársony puff", "Fehér skandináv stílusú függőlámpa 25 cm", "Márvány talpú bézs asztali lámpa"
+HELYES példák: "Elegáns rózsaszín bársony puff", "Fehér skandináv stílusú függőlámpa 25 cm", "Márvány talpú bézs asztali lámpa", "Natúr tengerfű fonott kosár szett 3 db"
 
 ### short_desc (Rövid leírás)
-Formátum:
+PONTOSAN ez a formátum:
 1. Terméknév.
-2. 1 mondat ami elmondja MI ez és MIRE jó.
-3. Méret külön mondatban.
-Példa: "Fehér skandináv stílusú függőlámpa. Letisztult, elegáns függőlámpa az otthonodban. Átmérője 25 cm"
-Példa: "Elegáns rózsaszín bársony puff. Minden szobának elragadó légkört teremt. Mérete 34x34x43 cm"
+2. 1 mondat ami TÉNYLEG elmondja MI ez és MIRE jó — NE legyen sablonos
+3. Méret külön mondatban
+HELYES: "Elegáns rózsaszín bársony puff. Minden szobának elragadó légkört teremt. Mérete 34x34x43 cm"
+HELYES: "Márvány talpú bézs asztali lámpa. Modern és stílusos kiegészítő világítás a hálóban vagy nappaliban. Magassága 45 cm"
+HELYTELEN: "Kényelmes, modern bárszék, amely tökéletes konyhaszigethez" — túl általános
 
 ### long_desc (Hosszú leírás)
-HTML formátum:
-- Eleje: <strong>Terméknév</strong>
-- Utána SEO-barát, természetes szöveg
-- Stílus: tárgyilagos + enyhén lakberendezős
-- Tartalmazza: konkrét funkció, hol használja a vevő, plusz előny ha van
-- Vége: méret és "Gyártó: House Nordic"
-- Lámpáknál: LED esetén LED technológia, vezeték hossz ha releváns
-- Szőnyegeknél: ápolási tanács (porszívózás, foltisztítás)
-Példa: "<strong>Fehér skandináv stílusú függőlámpa</strong>, amely az elegáns skandináv stílust képviseli. Használj több hasonló lámpát egy csoportban a drámaibb hatás kedvéért vagy akár csak egyet a letisztult megjelenés érdekében. A függőlámpa átmérője 25 cm, magassága 22 cm. Gyártó: House Nordic"
+HTML formátum, PONTOSAN így:
+
+1. Kezdés: <strong>Terméknév</strong>, utána vesszővel folytatva
+2. 2-3 mondat: MIT csinálhatsz vele, HOVA tedd, miért különleges — tegező stílusban
+3. Méret és "Gyártó: House Nordic"
+
+LÁMPÁKNÁL kötelezően add hozzá a végéhez:
+<p>Ápolási tanácsok:</p><ul><li>A lámpát nedves ruhával tisztítsd</li></ul><p>Milyen égőt használjunk:</p><ul><li>[foglalat típusa]</li><li>[watt]</li></ul>
+
+SZŐNYEGEKNÉL kötelezően add hozzá:
+<p>Ápolási tanácsok:</p><ul><li>Rendszeresen porszívózd</li><li>Foltokat azonnal itasd fel nedves ruhával</li><li>Nem gépi mosásra tervezték</li></ul>
+
+PÉLDA (puff):
+"<strong>Elegáns rózsaszín bársony puff</strong>, amely rózsaszín bársony borítása és arany színű talpazat együttese lélegzetelállító kompozíciót alkot. Halvány színének köszönhetően pompás harmóniába hozható sötétebb színű bútorokkal, bármelyik szobába nagyszerűen mutat. Használható lábtartónak, extra ülőhelyként és még megannyi lehetőségként. Mérete 34x34x43 cm Gyártó: House Nordic"
+
+PÉLDA (lámpa):
+"<strong>Márvány talpú bézs asztali lámpa</strong>, amely gomba formájával és visszafogott bézs színével a skandináv stílust csempészi otthonodba, ugyanakkor a márvány talp és arany színű rúdja elegánssá teszi. Használd a nappaliban az olvasósarokban vagy a hálószobában. Vezeték hossza 160 cm. Az asztali lámpa átmérője 25 cm, a magassága 45 cm. Gyártó: House Nordic<p>Ápolási tanácsok:</p><ul><li>A lámpát nedves ruhával tisztítsd</li></ul><p>Milyen égőt használjunk:</p><ul><li>E14 foglalat</li><li>40 W égő</li></ul>"
+
+PÉLDA (asztal):
+"<strong>Lourmarin tölgyfa kisasztal üveg lappal</strong> – természetes tölgyfa és edzett üveg találkozása. Tedd a kanapé mellé vagy használd éjjeliszekrényként, az alsó polcra dobd a kedvenc könyveidet. Mérete 40x40x45 cm. Gyártó: House Nordic"
 
 ### product_type
 Válassz EGYET ezek közül: {product_types}
-A kép és a terméknév alapján döntsd el.
 
 ### color_hu
-A termék fő színe MAGYARUL. Példák: Fehér, Szürke, Natúr, Bézs, Fekete, Rózsaszín, Ezüst, Zöld
+A termék fő színe MAGYARUL. Példák: Fehér, Szürke, Natúr, Bézs, Fekete, Rózsaszín, Ezüst, Zöld, Barna
 """
 
 
