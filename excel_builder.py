@@ -1,117 +1,112 @@
-"""Persistent Excel catalogue builder with embedded product images."""
+"""Build 26-column webshop import Excel matching Eszter's template."""
 
 import io
 from datetime import datetime
 
-import httpx
 from openpyxl import Workbook
-from openpyxl.drawing.image import Image as XlImage
-from openpyxl.styles import Alignment, Font
+from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
-from PIL import Image as PILImage
 
-COLUMNS = ["Name", "Description", "Price", "Currency", "Image", "Product URL", "Source URL", "Date Added"]
-THUMBNAIL_HEIGHT = 100  # pixels
-ROW_HEIGHT_PTS = 80  # Excel row height in points
-IMAGE_COL_WIDTH = 20  # Excel column width for image column
+# Exact headers from "új termék kreálás_2025_szept.xlsx"
+HEADERS = [
+    "Cikkszám",                                          # A
+    "Kategória azonosító(k)",                             # B
+    "Terméknév (hu)",                                     # C
+    "Rövid leírás (hu)",                                  # D
+    "Hosszú leírás (hu)",                                 # E
+    "További termékképek",                                # F
+    "Mikortól kapható",                                   # G
+    "Gyártói cikkszám",                                   # H
+    "Elsődleges termékkép",                               # I
+    "Szállítandó termék(igen (1) v. nem (0))",            # J
+    "Státusz (engedélyezett (1) v. letiltott (0) v. kifutott (2))",  # K
+    "Ingyenesen szállítható (Igen / Nem)",                # L
+    "Bruttó ár",                                          # M
+    "Alapár",                                             # N
+    "Gyártó",                                             # O
+    "Nincs készleten állapot",                            # P
+    "Csak Raktár 1 készleten állapot",                    # Q
+    "Csak Raktár 2 készleten állapot",                    # R
+    "Raktárkészlet 1",                                    # S
+    "Terméktípus",                                        # T
+    "Tulajdonság: Szín (szin)",                           # U
+    "Tulajdonság: Anyag (anyag)",                         # V
+    "Tulajdonság: Szélesség (szelesseg)",                 # W
+    "Tulajdonság: Hosszúság (hosszusag)",                 # X
+    "Tulajdonság: Magasság (magassag)",                   # Y
+    "Tulajdonság: Ajánlott (ajanlott)",                   # Z
+]
 
-HEADERS_STYLE = Font(bold=True, size=11)
+COL_WIDTHS = [12, 18, 35, 50, 60, 40, 14, 16, 40, 8, 8, 10, 12, 12, 16, 16, 16, 16, 10, 14, 12, 20, 12, 12, 12, 10]
 
-
-_BROWSER_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/125.0.0.0 Safari/537.36"
-    ),
-    "Accept": "image/*,*/*;q=0.8",
-}
-
-
-def download_image_bytes(url: str, timeout: float = 15.0) -> bytes | None:
-    """Download an image and return raw bytes. Returns None on failure."""
-    if not url:
-        return None
-    try:
-        with httpx.Client(follow_redirects=True, timeout=timeout, headers=_BROWSER_HEADERS) as client:
-            resp = client.get(url)
-            resp.raise_for_status()
-            return resp.content
-    except Exception:
-        return None
-
-
-def _make_thumbnail(image_bytes: bytes) -> io.BytesIO:
-    """Resize image bytes to thumbnail and return as BytesIO for openpyxl."""
-    with PILImage.open(io.BytesIO(image_bytes)) as img:
-        # Convert to RGB if needed (handles RGBA, palette, etc.)
-        if img.mode not in ("RGB", "RGBA"):
-            img = img.convert("RGB")
-        # Calculate proportional width
-        ratio = THUMBNAIL_HEIGHT / img.height
-        new_width = int(img.width * ratio)
-        img = img.resize((new_width, THUMBNAIL_HEIGHT), PILImage.LANCZOS)
-
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-        return buf
+HEADER_FONT = Font(bold=True, size=10)
 
 
+def build_catalogue_excel(products: list[dict]) -> bytes:
+    """Build a 26-column webshop import Excel.
 
-
-def build_excel(products: list[dict]) -> bytes:
-    """Build an Excel file from products and return as bytes.
-
-    Products should have 'image_bytes' key with pre-downloaded image data.
-
-    Returns:
-        Excel file as bytes
+    Each product dict should have:
+        - eszter_sku: her SKU (e.g. HN26-7)
+        - manufacturer_sku: HN SKU (e.g. 1001362)
+        - name_hu: Hungarian product name
+        - short_desc: short description
+        - long_desc: long description (HTML)
+        - product_type: from fixed list
+        - color_hu: Hungarian color
+        - material: material string
+        - width, length, height: dimensions
+        - primary_image: main image URL
+        - additional_images: list of additional image URLs
     """
     wb = Workbook()
     ws = wb.active
-    ws.title = "Product Catalogue"
+    ws.title = "export"
 
-    # Write header row
-    for col_idx, header in enumerate(COLUMNS, 1):
+    # Write headers
+    for col_idx, header in enumerate(HEADERS, 1):
         cell = ws.cell(row=1, column=col_idx, value=header)
-        cell.font = HEADERS_STYLE
+        cell.font = HEADER_FONT
 
     # Set column widths
-    col_widths = [30, 50, 10, 8, IMAGE_COL_WIDTH, 40, 40, 12]
-    for col_idx, width in enumerate(col_widths, 1):
+    for col_idx, width in enumerate(COL_WIDTHS, 1):
         ws.column_dimensions[get_column_letter(col_idx)].width = width
 
-    image_col_idx = COLUMNS.index("Image") + 1
     today = datetime.now().strftime("%Y-%m-%d")
 
-    for i, product in enumerate(products):
-        row = i + 2  # Row 1 is header
+    for i, p in enumerate(products):
+        row = i + 2
 
-        ws.cell(row=row, column=1, value=product["name"])
-        ws.cell(row=row, column=2, value=product["description"]).alignment = Alignment(wrap_text=True)
-        ws.cell(row=row, column=3, value=product["price"])
-        ws.cell(row=row, column=4, value=product["currency"])
-        ws.cell(row=row, column=6, value=product["product_url"])
-        ws.cell(row=row, column=7, value=product.get("source_url", ""))
-        ws.cell(row=row, column=8, value=today)
+        # Additional images joined with |||
+        additional_imgs = p.get("additional_images", [])
+        additional_imgs_str = "|||".join(additional_imgs) if additional_imgs else ""
 
-        # Embed image from pre-downloaded bytes
-        img_bytes = product.get("image_bytes")
-        if img_bytes:
-            try:
-                thumb_buf = _make_thumbnail(img_bytes)
-                xl_img = XlImage(thumb_buf)
-                cell_ref = f"{get_column_letter(image_col_idx)}{row}"
-                ws.add_image(xl_img, cell_ref)
-                ws.row_dimensions[row].height = ROW_HEIGHT_PTS
-            except Exception:
-                ws.cell(row=row, column=image_col_idx, value=product.get("image_url", ""))
-        else:
-            ws.cell(row=row, column=image_col_idx, value=product.get("image_url", ""))
+        ws.cell(row=row, column=1, value=p.get("eszter_sku", ""))         # A: Cikkszám
+        ws.cell(row=row, column=2, value="")                               # B: Kategória (manual)
+        ws.cell(row=row, column=3, value=p.get("name_hu", ""))            # C: Terméknév
+        ws.cell(row=row, column=4, value=p.get("short_desc", ""))         # D: Rövid leírás
+        ws.cell(row=row, column=5, value=p.get("long_desc", ""))          # E: Hosszú leírás
+        ws.cell(row=row, column=6, value=additional_imgs_str)              # F: További képek
+        ws.cell(row=row, column=7, value=today)                            # G: Mikortól kapható
+        ws.cell(row=row, column=8, value=p.get("manufacturer_sku", ""))   # H: Gyártói cikkszám
+        ws.cell(row=row, column=9, value=p.get("primary_image", ""))      # I: Elsődleges kép
+        ws.cell(row=row, column=10, value=1)                               # J: Szállítandó
+        ws.cell(row=row, column=11, value=1)                               # K: Státusz
+        ws.cell(row=row, column=12, value="Igen")                          # L: Ingyenesen szállítható
+        ws.cell(row=row, column=13, value="")                              # M: Bruttó ár (manual)
+        ws.cell(row=row, column=14, value="")                              # N: Alapár (manual)
+        ws.cell(row=row, column=15, value="House Nordic")                  # O: Gyártó
+        ws.cell(row=row, column=16, value="Elfogyott")                     # P: Nincs készleten
+        ws.cell(row=row, column=17, value="Raktáron")                      # Q: Raktár 1
+        ws.cell(row=row, column=18, value="Előrendelhető")                 # R: Raktár 2
+        ws.cell(row=row, column=19, value=10)                              # S: Raktárkészlet
+        ws.cell(row=row, column=20, value=p.get("product_type", ""))      # T: Terméktípus
+        ws.cell(row=row, column=21, value=p.get("color_hu", ""))          # U: Szín
+        ws.cell(row=row, column=22, value=p.get("material", ""))          # V: Anyag
+        ws.cell(row=row, column=23, value=p.get("width", ""))             # W: Szélesség
+        ws.cell(row=row, column=24, value=p.get("length", ""))            # X: Hosszúság
+        ws.cell(row=row, column=25, value=p.get("height", ""))            # Y: Magasság
+        ws.cell(row=row, column=26, value="")                              # Z: Ajánlott
 
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
-
-
